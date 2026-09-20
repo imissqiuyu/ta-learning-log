@@ -16,6 +16,14 @@ import subprocess
 import sys
 from datetime import datetime
 
+# ⚠️ Windows 控制台默认是 GBK，打不出 emoji 会直接崩。
+#    计划任务里跑崩了是【静默失败】，所以这里必须兜住。
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # ---------------------------------------------------------------- 配置
 GIT = r"D:\Git\cmd\git.exe"
 REPO = r"D:\ta-learning-log"
