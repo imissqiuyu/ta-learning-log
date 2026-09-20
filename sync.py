@@ -111,14 +111,16 @@ def main():
         log("已提交")
 
     # ---- 2. 推送 ----
-    code, out = run(["push"], check=False)
+    #   用 -u 显式指定上游，避免第一次推送报 "no upstream branch"
+    code, out = run(["push", "-u", "origin", "main"], check=False)
     if code == 0:
         log("✅ 已推送到 GitHub")
         return 0
 
     # 推送失败：可能是网络/代理问题，不算致命
-    log("⚠️ 推送失败（可能是代理没开），改动已经本地提交，下次会自动重试")
-    log("  " + out.splitlines()[-1] if out else "")
+    log("⚠️ 推送失败（改动已经本地提交，下次会自动重试）")
+    for line in out.splitlines()[:6]:
+        log("    " + line)
     return 0
 
 
