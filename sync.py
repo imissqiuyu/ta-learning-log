@@ -14,6 +14,7 @@
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime
 
 # ⚠️ Windows 控制台默认是 GBK，打不出 emoji 会直接崩。
@@ -116,17 +117,23 @@ def main():
         log("已提交")
 
     # ---- 2. 推送 ----
-    #   先直连，失败再走代理 —— 这样代理开不开都能工作
+    #   ⚠️ 这台机器上的代理是【时通时不通】的（实测：同一个 github.com
+    #      可能连续 5 次超时，也可能连续 5 次 200）。
+    #      所以要多试几轮，别一次失败就放弃。
     last_out = ""
-    for tag, up in (("直连", False), ("走代理", True)):
-        if up and not PROXY:
-            continue
-        code, last_out = run(["push", "-u", "origin", "main"], use_proxy=up)
-        if code == 0:
-            log("✅ 已推送到 GitHub（%s）" % tag)
-            return 0
+    for attempt in range(1, 4):
+        for tag, up in (("直连", False), ("走代理", True)):
+            if up and not PROXY:
+                continue
+            code, last_out = run(["push", "-u", "origin", "main"], use_proxy=up)
+            if code == 0:
+                log("✅ 已推送到 GitHub（%s，第 %d 轮）" % (tag, attempt))
+                return 0
+        if attempt < 3:
+            log("  第 %d 轮没推上去，等 5 秒再试" % attempt)
+            time.sleep(5)
 
-    # 两种都失败：可能是网络问题，不算致命，下次再试
+    # 三轮都失败：网络问题，不算致命，下次自动重试
     log("⚠️ 推送失败（改动已本地提交，下次会自动重试）")
     for line in last_out.splitlines()[:6]:
         log("    " + line)
