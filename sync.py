@@ -31,7 +31,9 @@ LOG = os.path.join(REPO, "sync.log")
 
 # 代理：留空 = 不用代理（直连）
 # 如果你用的是 Clash 系，通常是 http://127.0.0.1:7897
-PROXY = ""
+#
+# 推送时会【先直连、失败再走代理】—— 这样代理开不开都能工作
+PROXY = "http://127.0.0.1:7897"
 
 # 日志文件本身不要提交（不然每次同步都会产生新改动 → 死循环）
 GITIGNORE = """sync.log
@@ -50,10 +52,13 @@ def log(msg):
         pass
 
 
-def run(args, check=False):
-    """跑一条 git 命令，返回 (退出码, 输出)"""
+def run(args, check=False, use_proxy=False):
+    """跑一条 git 命令，返回 (退出码, 输出)
+
+    use_proxy=True 时临时带上代理参数（不写进 git 配置，避免污染全局）
+    """
     cmd = [GIT]
-    if PROXY:
+    if use_proxy and PROXY:
         cmd += ["-c", "http.proxy=" + PROXY, "-c", "https.proxy=" + PROXY]
     cmd += args
     try:
@@ -111,15 +116,19 @@ def main():
         log("已提交")
 
     # ---- 2. 推送 ----
-    #   用 -u 显式指定上游，避免第一次推送报 "no upstream branch"
-    code, out = run(["push", "-u", "origin", "main"], check=False)
-    if code == 0:
-        log("✅ 已推送到 GitHub")
-        return 0
+    #   先直连，失败再走代理 —— 这样代理开不开都能工作
+    last_out = ""
+    for tag, up in (("直连", False), ("走代理", True)):
+        if up and not PROXY:
+            continue
+        code, last_out = run(["push", "-u", "origin", "main"], use_proxy=up)
+        if code == 0:
+            log("✅ 已推送到 GitHub（%s）" % tag)
+            return 0
 
-    # 推送失败：可能是网络/代理问题，不算致命
-    log("⚠️ 推送失败（改动已经本地提交，下次会自动重试）")
-    for line in out.splitlines()[:6]:
+    # 两种都失败：可能是网络问题，不算致命，下次再试
+    log("⚠️ 推送失败（改动已本地提交，下次会自动重试）")
+    for line in last_out.splitlines()[:6]:
         log("    " + line)
     return 0
 
