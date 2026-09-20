@@ -1,0 +1,10 @@
+# 同步脚本自己的日志（不然每次同步都会产生新改动）
+sync.log
+
+# Python
+__pycache__/
+*.pyc
+
+# 系统
+Thumbs.db
+desktop.ini
